@@ -1,0 +1,50 @@
+service: lambda--integration
+
+plugins:
+  - serverless-webpack
+
+package:
+  individually: true
+
+custom:
+  webpack:
+    packager: npm
+
+useDotenv: true
+
+provider:
+  name: aws
+  region: us-east-2
+  runtime: nodejs14.x
+  environment: ${file(config/env.${opt:stage, 'staging'}.json)}
+
+functions:
+  Hello:
+    handler: app/handler.handler
+    maximumRetryAttempts: 2
+    maximumEventAge: 7200
+    memorySize: 512
+    timeout: 300
+    events:
+      - http:
+          path: hello
+          method: post
+          integration: aws
+          request:
+            passThrough: NEVER
+            template: 
+              application/json: ${file(method-request.yml)} 
+              application/x-www-form-urlencoded: ${file(method-request.yml)} 
+            parameters:
+              headers:
+                'X-Amz-Invocation-Type': true
+          response:
+            statusCodes:
+              200:
+                pattern: ''
+                template:
+                  application/json: ${file(method-response.yml)} 
+                  application/x-www-form-urlencoded: ${file(method-request.yml)}                  
+
+
+
