@@ -4,7 +4,13 @@
 #foreach($param in $input.params().querystring.keySet())\n
 \"$param\": \"$util.escapeJavaScript($input.params().querystring.get($param))\" \n
 #if($foreach.hasNext),#end #end\n
-},\n 
+},\n
+ \"path\":\n 
+ { \n
+#foreach($param in $input.params().path.keySet())\n
+\"$param\": \"$util.escapeJavaScript($input.params().path.get($param))\" \n
+#if($foreach.hasNext),#end #end\n
+},\n
 \"headers\":\n 
 {\"Authorization\" : \"$util.escapeJavaScript($input.params('Authorization'))\",\n
  \"InvocationType\": \"$util.escapeJavaScript($input.params('X-Amz-Invocation-Type'))\"}}"

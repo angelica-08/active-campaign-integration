@@ -1,4 +1,5 @@
 const path = require('path');
+const nodeExternals = require('webpack-node-externals');
 const slsw = require('serverless-webpack');
 
 module.exports = {
@@ -8,6 +9,7 @@ module.exports = {
     extensions: ['.ts', 'tsx']
   },
   target: 'node',
+  externals: [nodeExternals()],
   module: {
     rules: [
       {

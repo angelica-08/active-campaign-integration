@@ -2,4 +2,9 @@ node_modules
 .webpack
 config
 package-lock.json
+.dynamodb
+-webpack
+resources
+.serverless
+test
 

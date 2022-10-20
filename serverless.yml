@@ -1,33 +1,126 @@
-service: lambda--integration
+service: lambda-activecampaign-integration
 
 plugins:
   - serverless-webpack
+  - serverless-dynamodb-local
+  - serverless-offline
 
 package:
   individually: true
-
-custom:
-  webpack:
-    packager: npm
 
 useDotenv: true
 
 provider:
   name: aws
   region: us-east-2
+  stage: dev
   runtime: nodejs14.x
-  environment: ${file(config/env.${opt:stage, 'staging'}.json)}
+  environment: ${self:custom.settings}
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - dynamodb:Query
+            - dynamodb:Scan
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+            - dynamodb:UpdateItem
+            - dynamodb:DeleteItem
+          Resource: 
+            - "Fn::GetAtt": [ DateCalculatorTable, Arn ]
+
+custom:
+  settings:
+    KMS_KEY_ID: ${ssm:/activecampaign-integration/KMS_KEY}
+    DYNAMODB_TABLE: ${ssm:/activecampaign-integration/DYNAMODB_NAME}-${opt:stage, self:provider.stage}
+    KMS_GENERATOR_ID: ${ssm:/activecampaign-integration/GENERATOR_KEY}
+  stage: ${opt:stage, self:provider.stage}
+  tableName: ${self:provider.environment.DYNAMODB_TABLE}
+  serverless-offline:
+    httpPort: 4000
+    stageVariables:
+      foo: "bar"
+  dynamodb:    
+    stages:
+      - dev 
+    start:
+      seed: true
+      migrate: true
+      port: 8000
+      inMemory: true
+    migration: 
+      dir: offline/migrations
+    seed:
+      test:
+        sources:
+          - table: ${self:provider.environment.DYNAMODB_TABLE}
+            rawsources: [./test/dynamodb-test-data.json]
 
 functions:
-  Hello:
-    handler: app/handler.handler
+  getDateCalculator:
+    handler: app/handler/date-calculator.get
     maximumRetryAttempts: 2
     maximumEventAge: 7200
     memorySize: 512
     timeout: 300
     events:
       - http:
-          path: hello
+          path: date/calculator/{id}
+          method: get
+          integration: aws
+          request:
+            passThrough: NEVER
+            template: 
+              application/json: ${file(method-request.yml)} 
+              application/x-www-form-urlencoded: ${file(method-request.yml)} 
+            parameters:
+              headers:
+                'X-Amz-Invocation-Type': true
+          response:
+            statusCodes:
+              200:
+                pattern: ''
+                template:
+                  application/json: ${file(method-response.yml)} 
+                  application/x-www-form-urlencoded: ${file(method-request.yml)}
+
+  # listDateCalculator:
+  #   handler: app/handler/date-calculator.list
+  #   maximumRetryAttempts: 2
+  #   maximumEventAge: 7200
+  #   memorySize: 512
+  #   timeout: 300
+  #   events:
+  #     - http:
+  #         path: date/calculators
+  #         method: get
+  #         integration: aws
+  #         request:
+  #           passThrough: NEVER
+  #           template: 
+  #             application/json: ${file(method-request.yml)} 
+  #             application/x-www-form-urlencoded: ${file(method-request.yml)} 
+  #           parameters:
+  #             headers:
+  #               'X-Amz-Invocation-Type': true
+  #         response:
+  #           statusCodes:
+  #             200:
+  #               pattern: ''
+  #               template:
+  #                 application/json: ${file(method-response.yml)} 
+  #                 application/x-www-form-urlencoded: ${file(method-request.yml)}
+
+  createDateCalculator:
+    handler: app/handler/date-calculator.create
+    maximumRetryAttempts: 2
+    maximumEventAge: 7200
+    memorySize: 512
+    timeout: 300
+    events:
+      - http:
+          path: date/calculator
           method: post
           integration: aws
           request:
@@ -44,7 +137,34 @@ functions:
                 pattern: ''
                 template:
                   application/json: ${file(method-response.yml)} 
-                  application/x-www-form-urlencoded: ${file(method-request.yml)}                  
+                  application/x-www-form-urlencoded: ${file(method-request.yml)}
 
+  updateDateCalculator:
+    handler: app/handler/date-calculator.update
+    maximumRetryAttempts: 2
+    maximumEventAge: 7200
+    memorySize: 512
+    timeout: 300
+    events:
+      - http:
+          path: date/calculator
+          method: put
+          integration: aws
+          request:
+            passThrough: NEVER
+            template: 
+              application/json: ${file(method-request.yml)} 
+              application/x-www-form-urlencoded: ${file(method-request.yml)} 
+            parameters:
+              headers:
+                'X-Amz-Invocation-Type': true
+          response:
+            statusCodes:
+              200:
+                pattern: ''
+                template:
+                  application/json: ${file(method-response.yml)} 
+                  application/x-www-form-urlencoded: ${file(method-request.yml)}
 
-
+resources:
+  - ${file(resources/${opt:stage, self:provider.stage}.resources.yml)}
